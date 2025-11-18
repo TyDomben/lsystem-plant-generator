@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>L-System Plant Generator - Beautiful Organic Growth</title>
+    <meta name="description" content="Interactive L-System plant generator with beautiful organic visuals. Create ferns, trees, and flowers using mathematical growth patterns.">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
     <style>
@@ -86,6 +87,103 @@
             border-radius: 8px;
             border-left: 4px solid #10b981;
         }
+
+        /* Loading spinner */
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #10b981;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Responsive canvas */
+        #canvas-container canvas {
+            max-width: 100%;
+            height: auto !important;
+            display: block;
+        }
+
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #059669;
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Button loading state */
+        .btn-loading {
+            position: relative;
+            color: transparent !important;
+        }
+
+        .btn-loading::after {
+            content: "";
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            top: 50%;
+            left: 50%;
+            margin-left: -8px;
+            margin-top: -8px;
+            border: 2px solid #ffffff;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        /* Mobile optimizations */
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem !important;
+            }
+
+            .control-group {
+                padding: 1rem;
+            }
+
+            #canvas-container {
+                margin-top: 1rem;
+            }
+        }
+
+        /* Focus states for accessibility */
+        button:focus-visible,
+        input:focus-visible {
+            outline: 2px solid #10b981;
+            outline-offset: 2px;
+        }
+
+        /* Error message */
+        .error-message {
+            background: #fee2e2;
+            border-left: 4px solid #ef4444;
+            color: #991b1b;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-green-50 to-emerald-100 min-h-screen">
@@ -119,31 +217,32 @@
                     <h2 class="text-xl font-semibold mb-4 text-gray-800">⚙️ Parameters</h2>
 
                     <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <label for="angle-slider" class="block text-sm font-medium text-gray-700 mb-2">
                             Angle: <span id="angle-value" class="text-green-600 font-semibold">25°</span>
                         </label>
-                        <input type="range" id="angle-slider" class="slider" min="5" max="180" value="25" step="5">
+                        <input type="range" id="angle-slider" class="slider" min="5" max="180" value="25" step="5" aria-label="Branching angle in degrees">
                     </div>
 
                     <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <label for="iterations-slider" class="block text-sm font-medium text-gray-700 mb-2">
                             Iterations: <span id="iterations-value" class="text-green-600 font-semibold">5</span>
                         </label>
-                        <input type="range" id="iterations-slider" class="slider" min="1" max="8" value="5" step="1">
+                        <input type="range" id="iterations-slider" class="slider" min="1" max="8" value="5" step="1" aria-label="Number of growth iterations">
+                        <p class="text-xs text-gray-500 mt-1" id="iterations-warning"></p>
                     </div>
 
                     <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <label for="length-slider" class="block text-sm font-medium text-gray-700 mb-2">
                             Length: <span id="length-value" class="text-green-600 font-semibold">10</span>
                         </label>
-                        <input type="range" id="length-slider" class="slider" min="2" max="30" value="10" step="1">
+                        <input type="range" id="length-slider" class="slider" min="2" max="30" value="10" step="1" aria-label="Segment length in pixels">
                     </div>
 
                     <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <label for="randomness-slider" class="block text-sm font-medium text-gray-700 mb-2">
                             Randomness: <span id="randomness-value" class="text-green-600 font-semibold">0</span>
                         </label>
-                        <input type="range" id="randomness-slider" class="slider" min="0" max="100" value="0" step="5">
+                        <input type="range" id="randomness-slider" class="slider" min="0" max="100" value="0" step="5" aria-label="Amount of random variation">
                     </div>
 
                     <div class="flex items-center justify-between mb-2">
@@ -234,6 +333,17 @@
         </div>
     </div>
 
+    <!-- Toast Notification -->
+    <div id="toast" class="toast" role="alert" aria-live="polite"></div>
+
+    <!-- Loading Check -->
+    <script>
+        // Check if p5.js loaded successfully
+        if (typeof p5 === 'undefined') {
+            document.body.innerHTML = '<div class="error-message max-w-2xl mx-auto mt-8"><h2 class="font-bold text-lg mb-2">Error Loading Application</h2><p>Failed to load required libraries. Please check your internet connection and refresh the page.</p></div>';
+        }
+    </script>
+
     <script>
         // ===========================
         // L-SYSTEM IMPLEMENTATION
@@ -312,14 +422,32 @@
             }
         };
 
-        // L-System class for generating plant strings
+        /**
+         * L-System (Lindenmayer System) class
+         * Implements parallel string rewriting for modeling plant growth
+         *
+         * An L-System consists of:
+         * - An axiom (initial string)
+         * - Production rules (character replacements)
+         * - Iterations (how many times to apply rules)
+         */
         class LSystem {
+            /**
+             * Create a new L-System
+             * @param {string} axiom - The starting string (seed)
+             * @param {Object} rules - Production rules as key-value pairs
+             */
             constructor(axiom, rules) {
                 this.axiom = axiom;
                 this.rules = rules;
                 this.current = axiom;
             }
 
+            /**
+             * Generate L-System string by applying rules iteratively
+             * @param {number} iterations - Number of generations to produce
+             * @returns {string} The generated instruction string
+             */
             generate(iterations) {
                 this.current = this.axiom;
                 for (let i = 0; i < iterations; i++) {
@@ -328,6 +456,12 @@
                 return this.current;
             }
 
+            /**
+             * Apply production rules to an input string
+             * Each character is replaced by its rule, or kept as-is if no rule exists
+             * @param {string} input - The string to transform
+             * @returns {string} The transformed string
+             */
             applyRules(input) {
                 let output = "";
                 for (let char of input) {
@@ -336,7 +470,13 @@
                 return output;
             }
 
-            // Generate with stochastic (random) variations
+            /**
+             * Generate with stochastic (probabilistic) variations
+             * Rules are applied based on randomness threshold
+             * @param {number} iterations - Number of generations
+             * @param {number} randomness - Probability (0-100) of NOT applying a rule
+             * @returns {string} The generated instruction string with variations
+             */
             generateStochastic(iterations, randomness) {
                 this.current = this.axiom;
                 for (let i = 0; i < iterations; i++) {
@@ -345,6 +485,12 @@
                 return this.current;
             }
 
+            /**
+             * Apply rules stochastically (with random variation)
+             * @param {string} input - The string to transform
+             * @param {number} randomness - Probability threshold (0-100)
+             * @returns {string} The transformed string
+             */
             applyRulesStochastic(input, randomness) {
                 let output = "";
                 for (let char of input) {
@@ -375,10 +521,46 @@
         let animationProgress = 0;
         let animationSpeed = 0.02;
 
+        // ===========================
+        // UTILITY FUNCTIONS
+        // ===========================
+
+        /**
+         * Show a toast notification to the user
+         * @param {string} message - The message to display
+         * @param {string} type - 'success', 'error', or 'info'
+         */
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.style.background = type === 'error' ? '#dc2626' : type === 'info' ? '#2563eb' : '#059669';
+            toast.classList.add('show');
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        /**
+         * Calculate optimal canvas size based on viewport
+         */
+        function getCanvasSize() {
+            const container = document.getElementById('canvas-container');
+            const maxWidth = Math.min(container.clientWidth, 800);
+            const maxHeight = Math.min(window.innerHeight - 100, 800);
+            const size = Math.min(maxWidth, maxHeight);
+            return { width: size, height: size };
+        }
+
+        // ===========================
+        // P5.JS SKETCH
+        // ===========================
+
         // p5.js sketch
         const sketch = (p) => {
             p.setup = () => {
-                const canvas = p.createCanvas(800, 800);
+                const { width, height } = getCanvasSize();
+                const canvas = p.createCanvas(width, height);
                 canvas.parent('canvas-container');
                 p.angleMode(p.DEGREES);
                 p.smooth();
@@ -386,6 +568,12 @@
                 // Initialize with fern preset
                 loadPreset('fern');
                 updateDisplay();
+            };
+
+            // Handle window resize
+            p.windowResized = () => {
+                const { width, height } = getCanvasSize();
+                p.resizeCanvas(width, height);
             };
 
             p.draw = () => {
@@ -425,34 +613,42 @@
                 }
             }
 
+            /**
+             * Draw the plant by interpreting L-System instructions
+             * Uses turtle graphics: each character is a drawing command
+             * @param {p5} p - The p5.js instance
+             * @param {string} instructions - L-System string to interpret
+             */
             function drawPlant(p, instructions) {
-                let stack = [];
+                let stack = [];  // Stack for saving/restoring state (branches)
                 let currentLength = length;
                 let currentAngle = PRESETS[currentPreset].startAngle;
-                p.rotate(currentAngle);
+                p.rotate(currentAngle);  // Initial rotation (often -90 for upward growth)
 
                 for (let i = 0; i < instructions.length; i++) {
                     let char = instructions[i];
 
-                    // Calculate depth for color gradient
+                    // Calculate depth for color gradient (how many branches deep we are)
                     let depth = stack.length;
                     let maxDepth = 10;
                     let colorValue = p.map(depth, 0, maxDepth, 0, 1);
 
-                    // Green gradient from light to dark
-                    let c1 = p.color(144, 238, 144); // Light green
-                    let c2 = p.color(34, 139, 34);   // Dark green
+                    // Green gradient from light to dark based on depth
+                    let c1 = p.color(144, 238, 144); // Light green (new growth)
+                    let c2 = p.color(34, 139, 34);   // Dark green (mature branches)
                     let strokeColor = p.lerpColor(c1, c2, colorValue);
 
-                    // Adjust color for black background
+                    // Adjust color for black background (brighter greens)
                     if (backgroundColor === 'black') {
                         c1 = p.color(144, 238, 144);
                         c2 = p.color(50, 205, 50);
                         strokeColor = p.lerpColor(c1, c2, colorValue);
                     }
 
+                    // Interpret each character as a drawing command
                     if (char === 'F' || char === 'A' || char === 'B') {
-                        // Calculate line thickness based on depth
+                        // F/A/B = Draw forward (main drawing command)
+                        // Calculate line thickness based on depth (thicker at base)
                         let thickness = useTaper ? p.map(depth, 0, maxDepth, 8, 1) : 2;
 
                         p.stroke(strokeColor);
@@ -460,24 +656,24 @@
                         p.line(0, 0, 0, -currentLength);
                         p.translate(0, -currentLength);
                     } else if (char === '+') {
-                        // Turn right with optional randomness
+                        // + = Turn right (clockwise)
                         let randomAngle = randomness > 0 ? p.random(-randomness/10, randomness/10) : 0;
                         p.rotate(angle + randomAngle);
                     } else if (char === '-') {
-                        // Turn left with optional randomness
+                        // - = Turn left (counter-clockwise)
                         let randomAngle = randomness > 0 ? p.random(-randomness/10, randomness/10) : 0;
                         p.rotate(-(angle + randomAngle));
                     } else if (char === '[') {
-                        // Push current state
+                        // [ = Push state (start a branch - save position/angle)
                         stack.push({
                             x: 0,
                             y: 0,
                             angle: 0,
                             transform: p.drawingContext.getTransform()
                         });
-                        p.push();
+                        p.push();  // p5.js push/pop handles transformation matrix
                     } else if (char === ']') {
-                        // Pop previous state
+                        // ] = Pop state (end branch - restore position/angle)
                         if (stack.length > 0) {
                             stack.pop();
                             p.pop();
@@ -525,11 +721,43 @@
             updateRulesDisplay();
         }
 
+        /**
+         * Regenerate the plant string from L-system rules
+         * Includes performance warnings for complex generations
+         */
         function regeneratePlant() {
-            if (randomness > 0) {
-                plantString = lsystem.generateStochastic(iterations, randomness);
-            } else {
-                plantString = lsystem.generate(iterations);
+            try {
+                const startTime = performance.now();
+
+                if (randomness > 0) {
+                    plantString = lsystem.generateStochastic(iterations, randomness);
+                } else {
+                    plantString = lsystem.generate(iterations);
+                }
+
+                const endTime = performance.now();
+                const genTime = endTime - startTime;
+
+                // Show performance warning if generation took too long
+                const warningElement = document.getElementById('iterations-warning');
+                if (plantString.length > 50000) {
+                    warningElement.textContent = `⚠️ Large pattern (${plantString.length.toLocaleString()} instructions). May be slow.`;
+                    warningElement.style.color = '#d97706';
+                } else if (plantString.length > 10000) {
+                    warningElement.textContent = `Pattern size: ${plantString.length.toLocaleString()} instructions`;
+                    warningElement.style.color = '#6b7280';
+                } else {
+                    warningElement.textContent = '';
+                }
+
+                // Log generation time for debugging
+                if (genTime > 100) {
+                    console.log(`L-System generation took ${genTime.toFixed(2)}ms for ${plantString.length} characters`);
+                }
+
+            } catch (error) {
+                console.error('Error generating plant:', error);
+                showToast('Error generating plant. Try reducing iterations.', 'error');
             }
         }
 
@@ -618,28 +846,66 @@
         // ===========================
 
         // Export PNG
-        document.getElementById('export-png').addEventListener('click', () => {
-            const canvas = document.querySelector('#canvas-container canvas');
-            canvas.toBlob((blob) => {
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `lsystem-${currentPreset}-${Date.now()}.png`;
-                a.click();
-                URL.revokeObjectURL(url);
-            });
+        document.getElementById('export-png').addEventListener('click', function() {
+            const btn = this;
+            btn.classList.add('btn-loading');
+
+            try {
+                const canvas = document.querySelector('#canvas-container canvas');
+                if (!canvas) {
+                    throw new Error('Canvas not found');
+                }
+
+                canvas.toBlob((blob) => {
+                    if (!blob) {
+                        btn.classList.remove('btn-loading');
+                        showToast('Failed to export PNG', 'error');
+                        return;
+                    }
+
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `lsystem-${currentPreset}-${Date.now()}.png`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+
+                    btn.classList.remove('btn-loading');
+                    showToast('PNG downloaded successfully!', 'success');
+                });
+            } catch (error) {
+                console.error('PNG export error:', error);
+                btn.classList.remove('btn-loading');
+                showToast('Failed to export PNG', 'error');
+            }
         });
 
         // Export SVG
-        document.getElementById('export-svg').addEventListener('click', () => {
-            const svgContent = generateSVG();
-            const blob = new Blob([svgContent], { type: 'image/svg+xml' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `lsystem-${currentPreset}-${Date.now()}.svg`;
-            a.click();
-            URL.revokeObjectURL(url);
+        document.getElementById('export-svg').addEventListener('click', function() {
+            const btn = this;
+            btn.classList.add('btn-loading');
+
+            try {
+                const svgContent = generateSVG();
+                const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `lsystem-${currentPreset}-${Date.now()}.svg`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                btn.classList.remove('btn-loading');
+                showToast('SVG downloaded successfully!', 'success');
+            } catch (error) {
+                console.error('SVG export error:', error);
+                btn.classList.remove('btn-loading');
+                showToast('Failed to export SVG', 'error');
+            }
         });
 
         function generateSVG() {
@@ -703,8 +969,8 @@
             return paths;
         }
 
-        // Share link
-        document.getElementById('share-btn').addEventListener('click', () => {
+        // Share link with clipboard fallback
+        document.getElementById('share-btn').addEventListener('click', async function() {
             const params = new URLSearchParams({
                 preset: currentPreset,
                 angle: angle,
@@ -717,14 +983,35 @@
 
             const url = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
 
-            navigator.clipboard.writeText(url).then(() => {
-                const btn = document.getElementById('share-btn');
-                const originalText = btn.textContent;
-                btn.textContent = '✓ Link Copied!';
-                setTimeout(() => {
-                    btn.textContent = originalText;
-                }, 2000);
-            });
+            try {
+                // Try modern Clipboard API first
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(url);
+                    showToast('Link copied to clipboard!', 'success');
+                } else {
+                    // Fallback for older browsers
+                    const textArea = document.createElement('textarea');
+                    textArea.value = url;
+                    textArea.style.position = 'fixed';
+                    textArea.style.left = '-999999px';
+                    document.body.appendChild(textArea);
+                    textArea.select();
+
+                    try {
+                        document.execCommand('copy');
+                        showToast('Link copied to clipboard!', 'success');
+                    } catch (err) {
+                        // If all else fails, show the URL
+                        prompt('Copy this link:', url);
+                    } finally {
+                        document.body.removeChild(textArea);
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to copy link:', error);
+                // Show URL in a prompt as last resort
+                prompt('Copy this link:', url);
+            }
         });
 
         // Load from URL parameters
@@ -734,7 +1021,8 @@
             if (params.has('preset')) {
                 const preset = params.get('preset');
                 if (PRESETS[preset]) {
-                    document.querySelector(`[data-preset="${preset}"]`).click();
+                    const btn = document.querySelector(`[data-preset="${preset}"]`);
+                    if (btn) btn.click();
                 }
             }
 
@@ -765,12 +1053,86 @@
 
             if (params.has('bg')) {
                 backgroundColor = params.get('bg');
-                document.querySelector(`[data-bg="${backgroundColor}"]`).click();
+                const bgBtn = document.querySelector(`[data-bg="${backgroundColor}"]`);
+                if (bgBtn) bgBtn.click();
             }
 
             updateDisplay();
-            regeneratePlant();
+            if (params.has('preset') || params.has('iterations') || params.has('randomness')) {
+                regeneratePlant();
+            }
         });
+
+        // ===========================
+        // KEYBOARD SHORTCUTS
+        // ===========================
+
+        document.addEventListener('keydown', (e) => {
+            // Prevent shortcuts when typing in inputs
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                return;
+            }
+
+            switch(e.key.toLowerCase()) {
+                case ' ':  // Spacebar - Play/Stop animation
+                    e.preventDefault();
+                    if (isAnimating) {
+                        isAnimating = false;
+                    } else {
+                        isAnimating = true;
+                        animationProgress = 0;
+                    }
+                    break;
+
+                case 'r':  // R - Reset
+                    e.preventDefault();
+                    document.getElementById('reset-btn').click();
+                    showToast('Reset to current preset', 'info');
+                    break;
+
+                case 's':  // S - Share link
+                    if (e.ctrlKey || e.metaKey) {
+                        e.preventDefault();
+                        document.getElementById('share-btn').click();
+                    }
+                    break;
+
+                case 'p':  // P - Export PNG
+                    if (e.ctrlKey || e.metaKey) {
+                        e.preventDefault();
+                        document.getElementById('export-png').click();
+                    }
+                    break;
+
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                case '6':
+                    // Number keys 1-6 - Select preset
+                    e.preventDefault();
+                    const presets = ['fern', 'tree', 'algae', 'bush', 'flower', 'vine'];
+                    const presetIndex = parseInt(e.key) - 1;
+                    if (presets[presetIndex]) {
+                        const btn = document.querySelector(`[data-preset="${presets[presetIndex]}"]`);
+                        if (btn) btn.click();
+                    }
+                    break;
+
+                case '?':  // ? - Show keyboard shortcuts
+                    if (e.shiftKey) {
+                        e.preventDefault();
+                        showToast('Keys: 1-6=Presets, Space=Animate, R=Reset, Ctrl+S=Share, Ctrl+P=PNG', 'info');
+                    }
+                    break;
+            }
+        });
+
+        // Show welcome message with hint
+        setTimeout(() => {
+            showToast('💡 Press ? for keyboard shortcuts', 'info');
+        }, 1500);
     </script>
 </body>
 </html>
