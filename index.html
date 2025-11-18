@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>L-System Plant Generator - Beautiful Organic Growth</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: linear-gradient(to right, #d1fae5 0%, #10b981 100%);
+            outline: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #059669;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #059669;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            border: none;
+        }
+
+        .preset-btn {
+            transition: all 0.3s ease;
+        }
+
+        .preset-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .preset-btn.active {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+
+        #canvas-container {
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .control-group {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            margin-bottom: 1rem;
+        }
+
+        .rule-display {
+            font-family: 'Courier New', monospace;
+            background: #f0fdf4;
+            padding: 1rem;
+            border-radius: 8px;
+            border-left: 4px solid #10b981;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-green-50 to-emerald-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-5xl font-bold mb-2">
+                <span class="gradient-text">L-System Plant Generator</span>
+            </h1>
+            <p class="text-gray-600 text-lg">Explore the beauty of nature through mathematical growth patterns</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Left Panel - Controls -->
+            <div class="lg:col-span-1 space-y-4">
+                <!-- Presets -->
+                <div class="control-group">
+                    <h2 class="text-xl font-semibold mb-4 text-gray-800">🌿 Plant Presets</h2>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button class="preset-btn active px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium" data-preset="fern">Fern</button>
+                        <button class="preset-btn px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium" data-preset="tree">Binary Tree</button>
+                        <button class="preset-btn px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium" data-preset="algae">Algae</button>
+                        <button class="preset-btn px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium" data-preset="bush">Bush</button>
+                        <button class="preset-btn px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium" data-preset="flower">Flower</button>
+                        <button class="preset-btn px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium" data-preset="vine">Vine</button>
+                    </div>
+                </div>
+
+                <!-- Parameters -->
+                <div class="control-group">
+                    <h2 class="text-xl font-semibold mb-4 text-gray-800">⚙️ Parameters</h2>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Angle: <span id="angle-value" class="text-green-600 font-semibold">25°</span>
+                        </label>
+                        <input type="range" id="angle-slider" class="slider" min="5" max="180" value="25" step="5">
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Iterations: <span id="iterations-value" class="text-green-600 font-semibold">5</span>
+                        </label>
+                        <input type="range" id="iterations-slider" class="slider" min="1" max="8" value="5" step="1">
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Length: <span id="length-value" class="text-green-600 font-semibold">10</span>
+                        </label>
+                        <input type="range" id="length-slider" class="slider" min="2" max="30" value="10" step="1">
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Randomness: <span id="randomness-value" class="text-green-600 font-semibold">0</span>
+                        </label>
+                        <input type="range" id="randomness-slider" class="slider" min="0" max="100" value="0" step="5">
+                    </div>
+
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="text-sm font-medium text-gray-700">Tapered Branches</label>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="thickness-toggle" class="sr-only peer" checked>
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Animation Controls -->
+                <div class="control-group">
+                    <h2 class="text-xl font-semibold mb-4 text-gray-800">🎬 Animation</h2>
+                    <div class="flex gap-2">
+                        <button id="animate-btn" class="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition">
+                            Play Growth
+                        </button>
+                        <button id="reset-btn" class="flex-1 px-4 py-2 bg-gray-600 text-white rounded-lg font-medium hover:bg-gray-700 transition">
+                            Reset
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Background -->
+                <div class="control-group">
+                    <h2 class="text-xl font-semibold mb-4 text-gray-800">🎨 Background</h2>
+                    <div class="flex gap-2">
+                        <button class="bg-btn flex-1 px-4 py-2 bg-white border-2 border-green-600 rounded-lg font-medium" data-bg="white">White</button>
+                        <button class="bg-btn flex-1 px-4 py-2 bg-gray-100 border-2 border-gray-300 rounded-lg font-medium" data-bg="black">Black</button>
+                        <button class="bg-btn flex-1 px-4 py-2 bg-gray-100 border-2 border-gray-300 rounded-lg font-medium" data-bg="gradient">Gradient</button>
+                    </div>
+                </div>
+
+                <!-- Export -->
+                <div class="control-group">
+                    <h2 class="text-xl font-semibold mb-4 text-gray-800">💾 Export</h2>
+                    <div class="space-y-2">
+                        <button id="export-png" class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition">
+                            Download PNG
+                        </button>
+                        <button id="export-svg" class="w-full px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition">
+                            Download SVG
+                        </button>
+                        <button id="share-btn" class="w-full px-4 py-2 bg-orange-600 text-white rounded-lg font-medium hover:bg-orange-700 transition">
+                            Copy Share Link
+                        </button>
+                    </div>
+                </div>
+
+                <!-- L-System Rules Display -->
+                <div class="control-group">
+                    <h2 class="text-xl font-semibold mb-4 text-gray-800">📚 Current L-System</h2>
+                    <div class="rule-display">
+                        <div class="mb-2">
+                            <span class="font-semibold">Axiom:</span>
+                            <div id="axiom-display" class="text-sm mt-1">X</div>
+                        </div>
+                        <div>
+                            <span class="font-semibold">Rules:</span>
+                            <div id="rules-display" class="text-sm mt-1"></div>
+                        </div>
+                        <div class="mt-3 text-xs text-gray-600">
+                            <strong>Legend:</strong><br>
+                            F = Draw forward<br>
+                            + = Turn right<br>
+                            - = Turn left<br>
+                            [ = Push state<br>
+                            ] = Pop state
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel - Canvas -->
+            <div class="lg:col-span-2">
+                <div id="canvas-container" class="bg-white">
+                    <!-- p5.js canvas will be inserted here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center mt-8 text-gray-600">
+            <p class="text-sm">
+                🌱 L-Systems are parallel rewriting systems used to model plant growth and development
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // ===========================
+        // L-SYSTEM IMPLEMENTATION
+        // ===========================
+
+        // L-System presets with axiom and production rules
+        const PRESETS = {
+            fern: {
+                name: "Barnsley Fern",
+                axiom: "X",
+                rules: {
+                    "X": "F+[[X]-X]-F[-FX]+X",
+                    "F": "FF"
+                },
+                angle: 25,
+                length: 10,
+                iterations: 5,
+                startAngle: -90
+            },
+            tree: {
+                name: "Binary Tree",
+                axiom: "F",
+                rules: {
+                    "F": "FF+[+F-F-F]-[-F+F+F]"
+                },
+                angle: 22.5,
+                length: 8,
+                iterations: 4,
+                startAngle: -90
+            },
+            algae: {
+                name: "Algae Growth",
+                axiom: "A",
+                rules: {
+                    "A": "AB",
+                    "B": "A"
+                },
+                angle: 90,
+                length: 15,
+                iterations: 6,
+                startAngle: 0
+            },
+            bush: {
+                name: "Dense Bush",
+                axiom: "F",
+                rules: {
+                    "F": "F[+F]F[-F]F"
+                },
+                angle: 25,
+                length: 6,
+                iterations: 5,
+                startAngle: -90
+            },
+            flower: {
+                name: "Radial Flower",
+                axiom: "F",
+                rules: {
+                    "F": "F[+F][-F]"
+                },
+                angle: 45,
+                length: 12,
+                iterations: 6,
+                startAngle: -90
+            },
+            vine: {
+                name: "Climbing Vine",
+                axiom: "X",
+                rules: {
+                    "X": "F-[[X]+X]+F[+FX]-X",
+                    "F": "FF"
+                },
+                angle: 22.5,
+                length: 8,
+                iterations: 5,
+                startAngle: -90
+            }
+        };
+
+        // L-System class for generating plant strings
+        class LSystem {
+            constructor(axiom, rules) {
+                this.axiom = axiom;
+                this.rules = rules;
+                this.current = axiom;
+            }
+
+            generate(iterations) {
+                this.current = this.axiom;
+                for (let i = 0; i < iterations; i++) {
+                    this.current = this.applyRules(this.current);
+                }
+                return this.current;
+            }
+
+            applyRules(input) {
+                let output = "";
+                for (let char of input) {
+                    output += this.rules[char] || char;
+                }
+                return output;
+            }
+
+            // Generate with stochastic (random) variations
+            generateStochastic(iterations, randomness) {
+                this.current = this.axiom;
+                for (let i = 0; i < iterations; i++) {
+                    this.current = this.applyRulesStochastic(this.current, randomness);
+                }
+                return this.current;
+            }
+
+            applyRulesStochastic(input, randomness) {
+                let output = "";
+                for (let char of input) {
+                    if (this.rules[char] && Math.random() * 100 > randomness) {
+                        output += this.rules[char];
+                    } else {
+                        output += char;
+                    }
+                }
+                return output;
+            }
+        }
+
+        // ===========================
+        // P5.JS SKETCH
+        // ===========================
+
+        let currentPreset = 'fern';
+        let lsystem;
+        let plantString = "";
+        let angle = 25;
+        let length = 10;
+        let iterations = 5;
+        let randomness = 0;
+        let useTaper = true;
+        let backgroundColor = 'white';
+        let isAnimating = false;
+        let animationProgress = 0;
+        let animationSpeed = 0.02;
+
+        // p5.js sketch
+        const sketch = (p) => {
+            p.setup = () => {
+                const canvas = p.createCanvas(800, 800);
+                canvas.parent('canvas-container');
+                p.angleMode(p.DEGREES);
+                p.smooth();
+
+                // Initialize with fern preset
+                loadPreset('fern');
+                updateDisplay();
+            };
+
+            p.draw = () => {
+                // Set background
+                if (backgroundColor === 'white') {
+                    p.background(255);
+                } else if (backgroundColor === 'black') {
+                    p.background(20);
+                } else if (backgroundColor === 'gradient') {
+                    drawGradientBackground(p);
+                }
+
+                // Draw plant
+                p.push();
+                p.translate(p.width / 2, p.height - 50);
+
+                if (isAnimating) {
+                    drawPlantAnimated(p);
+                    animationProgress += animationSpeed;
+                    if (animationProgress >= 1) {
+                        isAnimating = false;
+                        animationProgress = 1;
+                    }
+                } else {
+                    drawPlant(p, plantString);
+                }
+
+                p.pop();
+            };
+
+            function drawGradientBackground(p) {
+                for (let i = 0; i < p.height; i++) {
+                    let inter = p.map(i, 0, p.height, 0, 1);
+                    let c = p.lerpColor(p.color(232, 245, 233), p.color(194, 229, 156), inter);
+                    p.stroke(c);
+                    p.line(0, i, p.width, i);
+                }
+            }
+
+            function drawPlant(p, instructions) {
+                let stack = [];
+                let currentLength = length;
+                let currentAngle = PRESETS[currentPreset].startAngle;
+                p.rotate(currentAngle);
+
+                for (let i = 0; i < instructions.length; i++) {
+                    let char = instructions[i];
+
+                    // Calculate depth for color gradient
+                    let depth = stack.length;
+                    let maxDepth = 10;
+                    let colorValue = p.map(depth, 0, maxDepth, 0, 1);
+
+                    // Green gradient from light to dark
+                    let c1 = p.color(144, 238, 144); // Light green
+                    let c2 = p.color(34, 139, 34);   // Dark green
+                    let strokeColor = p.lerpColor(c1, c2, colorValue);
+
+                    // Adjust color for black background
+                    if (backgroundColor === 'black') {
+                        c1 = p.color(144, 238, 144);
+                        c2 = p.color(50, 205, 50);
+                        strokeColor = p.lerpColor(c1, c2, colorValue);
+                    }
+
+                    if (char === 'F' || char === 'A' || char === 'B') {
+                        // Calculate line thickness based on depth
+                        let thickness = useTaper ? p.map(depth, 0, maxDepth, 8, 1) : 2;
+
+                        p.stroke(strokeColor);
+                        p.strokeWeight(thickness);
+                        p.line(0, 0, 0, -currentLength);
+                        p.translate(0, -currentLength);
+                    } else if (char === '+') {
+                        // Turn right with optional randomness
+                        let randomAngle = randomness > 0 ? p.random(-randomness/10, randomness/10) : 0;
+                        p.rotate(angle + randomAngle);
+                    } else if (char === '-') {
+                        // Turn left with optional randomness
+                        let randomAngle = randomness > 0 ? p.random(-randomness/10, randomness/10) : 0;
+                        p.rotate(-(angle + randomAngle));
+                    } else if (char === '[') {
+                        // Push current state
+                        stack.push({
+                            x: 0,
+                            y: 0,
+                            angle: 0,
+                            transform: p.drawingContext.getTransform()
+                        });
+                        p.push();
+                    } else if (char === ']') {
+                        // Pop previous state
+                        if (stack.length > 0) {
+                            stack.pop();
+                            p.pop();
+                        }
+                    }
+                }
+            }
+
+            function drawPlantAnimated(p) {
+                let totalChars = Math.floor(plantString.length * animationProgress);
+                let animatedString = plantString.substring(0, totalChars);
+                drawPlant(p, animatedString);
+            }
+        };
+
+        // Initialize p5.js
+        new p5(sketch);
+
+        // ===========================
+        // UI CONTROLS
+        // ===========================
+
+        function loadPreset(presetName) {
+            currentPreset = presetName;
+            const preset = PRESETS[presetName];
+
+            // Update sliders
+            document.getElementById('angle-slider').value = preset.angle;
+            document.getElementById('iterations-slider').value = preset.iterations;
+            document.getElementById('length-slider').value = preset.length;
+
+            // Update values
+            angle = preset.angle;
+            iterations = preset.iterations;
+            length = preset.length;
+
+            // Update displays
+            document.getElementById('angle-value').textContent = angle + '°';
+            document.getElementById('iterations-value').textContent = iterations;
+            document.getElementById('length-value').textContent = length;
+
+            // Generate L-system
+            lsystem = new LSystem(preset.axiom, preset.rules);
+            regeneratePlant();
+            updateRulesDisplay();
+        }
+
+        function regeneratePlant() {
+            if (randomness > 0) {
+                plantString = lsystem.generateStochastic(iterations, randomness);
+            } else {
+                plantString = lsystem.generate(iterations);
+            }
+        }
+
+        function updateRulesDisplay() {
+            const preset = PRESETS[currentPreset];
+            document.getElementById('axiom-display').textContent = preset.axiom;
+
+            let rulesHTML = '';
+            for (let [key, value] of Object.entries(preset.rules)) {
+                rulesHTML += `${key} → ${value}<br>`;
+            }
+            document.getElementById('rules-display').innerHTML = rulesHTML;
+        }
+
+        function updateDisplay() {
+            // Update value displays
+            document.getElementById('angle-value').textContent = angle + '°';
+            document.getElementById('iterations-value').textContent = iterations;
+            document.getElementById('length-value').textContent = length;
+            document.getElementById('randomness-value').textContent = randomness;
+        }
+
+        // Preset buttons
+        document.querySelectorAll('.preset-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                loadPreset(e.target.dataset.preset);
+            });
+        });
+
+        // Sliders
+        document.getElementById('angle-slider').addEventListener('input', (e) => {
+            angle = parseFloat(e.target.value);
+            updateDisplay();
+        });
+
+        document.getElementById('iterations-slider').addEventListener('input', (e) => {
+            iterations = parseInt(e.target.value);
+            regeneratePlant();
+            updateDisplay();
+        });
+
+        document.getElementById('length-slider').addEventListener('input', (e) => {
+            length = parseFloat(e.target.value);
+            updateDisplay();
+        });
+
+        document.getElementById('randomness-slider').addEventListener('input', (e) => {
+            randomness = parseFloat(e.target.value);
+            regeneratePlant();
+            updateDisplay();
+        });
+
+        document.getElementById('thickness-toggle').addEventListener('change', (e) => {
+            useTaper = e.target.checked;
+        });
+
+        // Animation
+        document.getElementById('animate-btn').addEventListener('click', () => {
+            isAnimating = true;
+            animationProgress = 0;
+        });
+
+        document.getElementById('reset-btn').addEventListener('click', () => {
+            isAnimating = false;
+            animationProgress = 0;
+            loadPreset(currentPreset);
+        });
+
+        // Background buttons
+        document.querySelectorAll('.bg-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.bg-btn').forEach(b => {
+                    b.classList.remove('border-green-600');
+                    b.classList.add('border-gray-300');
+                });
+                e.target.classList.remove('border-gray-300');
+                e.target.classList.add('border-green-600');
+                backgroundColor = e.target.dataset.bg;
+            });
+        });
+
+        // ===========================
+        // EXPORT FUNCTIONALITY
+        // ===========================
+
+        // Export PNG
+        document.getElementById('export-png').addEventListener('click', () => {
+            const canvas = document.querySelector('#canvas-container canvas');
+            canvas.toBlob((blob) => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `lsystem-${currentPreset}-${Date.now()}.png`;
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+        });
+
+        // Export SVG
+        document.getElementById('export-svg').addEventListener('click', () => {
+            const svgContent = generateSVG();
+            const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `lsystem-${currentPreset}-${Date.now()}.svg`;
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        function generateSVG() {
+            let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800">`;
+
+            // Background
+            if (backgroundColor === 'white') {
+                svg += `<rect width="800" height="800" fill="white"/>`;
+            } else if (backgroundColor === 'black') {
+                svg += `<rect width="800" height="800" fill="#141414"/>`;
+            } else {
+                svg += `<defs><linearGradient id="grad1" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" style="stop-color:#e8f5e9;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#c2e59c;stop-opacity:1" />
+                </linearGradient></defs><rect width="800" height="800" fill="url(#grad1)"/>`;
+            }
+
+            // Generate paths
+            svg += `<g transform="translate(400, 750)">`;
+            svg += generateSVGPaths(plantString);
+            svg += `</g></svg>`;
+
+            return svg;
+        }
+
+        function generateSVGPaths(instructions) {
+            let paths = '';
+            let stack = [];
+            let x = 0, y = 0;
+            let currentAngle = PRESETS[currentPreset].startAngle;
+
+            for (let char of instructions) {
+                let depth = stack.length;
+                let colorValue = Math.min(depth / 10, 1);
+                let r = Math.floor(144 + (34 - 144) * colorValue);
+                let g = Math.floor(238 + (139 - 238) * colorValue);
+                let b = Math.floor(144 + (34 - 144) * colorValue);
+                let color = `rgb(${r},${g},${b})`;
+                let thickness = useTaper ? Math.max(8 - depth * 0.7, 1) : 2;
+
+                if (char === 'F' || char === 'A' || char === 'B') {
+                    let newX = x + length * Math.cos((currentAngle - 90) * Math.PI / 180);
+                    let newY = y + length * Math.sin((currentAngle - 90) * Math.PI / 180);
+                    paths += `<line x1="${x}" y1="${y}" x2="${newX}" y2="${newY}" stroke="${color}" stroke-width="${thickness}" stroke-linecap="round"/>`;
+                    x = newX;
+                    y = newY;
+                } else if (char === '+') {
+                    currentAngle += angle;
+                } else if (char === '-') {
+                    currentAngle -= angle;
+                } else if (char === '[') {
+                    stack.push({ x, y, angle: currentAngle });
+                } else if (char === ']' && stack.length > 0) {
+                    let state = stack.pop();
+                    x = state.x;
+                    y = state.y;
+                    currentAngle = state.angle;
+                }
+            }
+
+            return paths;
+        }
+
+        // Share link
+        document.getElementById('share-btn').addEventListener('click', () => {
+            const params = new URLSearchParams({
+                preset: currentPreset,
+                angle: angle,
+                iterations: iterations,
+                length: length,
+                randomness: randomness,
+                taper: useTaper,
+                bg: backgroundColor
+            });
+
+            const url = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+
+            navigator.clipboard.writeText(url).then(() => {
+                const btn = document.getElementById('share-btn');
+                const originalText = btn.textContent;
+                btn.textContent = '✓ Link Copied!';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                }, 2000);
+            });
+        });
+
+        // Load from URL parameters
+        window.addEventListener('load', () => {
+            const params = new URLSearchParams(window.location.search);
+
+            if (params.has('preset')) {
+                const preset = params.get('preset');
+                if (PRESETS[preset]) {
+                    document.querySelector(`[data-preset="${preset}"]`).click();
+                }
+            }
+
+            if (params.has('angle')) {
+                document.getElementById('angle-slider').value = params.get('angle');
+                angle = parseFloat(params.get('angle'));
+            }
+
+            if (params.has('iterations')) {
+                document.getElementById('iterations-slider').value = params.get('iterations');
+                iterations = parseInt(params.get('iterations'));
+            }
+
+            if (params.has('length')) {
+                document.getElementById('length-slider').value = params.get('length');
+                length = parseFloat(params.get('length'));
+            }
+
+            if (params.has('randomness')) {
+                document.getElementById('randomness-slider').value = params.get('randomness');
+                randomness = parseFloat(params.get('randomness'));
+            }
+
+            if (params.has('taper')) {
+                useTaper = params.get('taper') === 'true';
+                document.getElementById('thickness-toggle').checked = useTaper;
+            }
+
+            if (params.has('bg')) {
+                backgroundColor = params.get('bg');
+                document.querySelector(`[data-bg="${backgroundColor}"]`).click();
+            }
+
+            updateDisplay();
+            regeneratePlant();
+        });
+    </script>
+</body>
+</html>
